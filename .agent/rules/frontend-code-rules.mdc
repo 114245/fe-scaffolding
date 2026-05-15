@@ -1,0 +1,108 @@
+---
+description: "Reglas estructurales, de sintaxis y diseño (Tailwind) obligatorias para código Frontend."
+globs: "src/**/*.{js,html,css}"
+alwaysApply: true
+---
+
+# rules/frontend-code-rules.md — Reglas de código Frontend
+
+Estas reglas son **no negociables**. El agente debe detectarlas en su propio output y corregirlas antes de entregar cualquier artefacto.
+
+---
+
+## HTML — semántica y accesibilidad
+
+- **Div-itis prohibida**: usar siempre la etiqueta semántica correcta: `<header>`, `<main>`, `<footer>`, `<nav>`, `<article>`, `<section>`, `<aside>`, `<figure>`, `<search>`, `<dialog>`, `<time>`, `<mark>`, `<output>`.
+- **Un solo `<h1>`** por página. La jerarquía de headings nunca salta niveles (h1 → h2 → h3).
+- **Todo `<input>` tiene `<label>`** vinculado por `for`/`id`. El atributo `placeholder` no reemplaza al `<label>`.
+- **Toda `<img>` tiene `alt`**: descriptivo si la imagen aporta información, vacío (`alt=""`) si es decorativa.
+- **Atributos ARIA** solo cuando el HTML nativo es insuficiente para expresar el estado del componente (`aria-expanded`, `aria-hidden`, `aria-label`, `aria-controls`).
+- **`:focus-visible`** debe ser visible en todos los elementos interactivos.
+
+## JavaScript — sintaxis y patrones
+
+- **`var` prohibido**: usar `const` por defecto, `let` solo si hay reasignación.
+- **`innerHTML` con datos del usuario prohibido** (vector XSS): usar siempre `textContent` para texto dinámico. `innerHTML` solo para HTML literal controlado (nunca datos ingresados por el usuario).
+- **Mutación de arrays/objetos originales prohibida**: usar spread (`[...arr]`, `{...obj}`) para copias superficiales o `structuredClone()` para copias profundas antes de operar.
+- **Listeners individuales en elementos dinámicos prohibidos**: usar delegación de eventos colocando el listener en el contenedor padre y usando `.closest()` o `.matches()` sobre `event.target`.
+- **Layout Thrashing prohibido**: nunca insertar nodos en el DOM dentro de un bucle directamente. Agrupar en `DocumentFragment` y usar `replaceChildren()` una sola vez.
+- **Igualdad estricta**: siempre `===`, nunca `==`.
+- **Módulos ES**: todo archivo usa `import`/`export`. Sin scripts globals acumulados.
+
+## CSS y Tailwind
+
+- **Tailwind utility-first**: clases utilitarias directamente en el HTML. No crear archivos CSS custom para lo que Tailwind ya resuelve.
+- **CSS custom permitido solo para**: `@keyframes` complejos, variables en `:root`, `box-sizing` global, efectos avanzados (`backdrop-filter`, `clip-path`, `mask-image`), `scroll-behavior`, `prefers-reduced-motion`.
+- **`box-sizing: border-box`** global declarado siempre.
+- **Mobile-first**: clases base para mobile, breakpoints de Tailwind para pantallas superiores (`sm:`, `md:`, `lg:`).
+- **Fuentes genéricas prohibidas como primera elección**: Inter, Roboto, Arial, system-ui sin una decisión estética explícita detrás.
+- **Diseño genérico de IA prohibido**: gradiente púrpura sobre blanco, Space Grotesk como única fuente, layouts simétricos sin intención.
+
+## Fetch y asincronía
+
+- **`response.ok` siempre validado**: `fetch` no lanza error en 4xx/5xx; validar manualmente antes de parsear.
+- **`try/catch` siempre presente** en cada llamada `fetch`.
+- **Estados de UI obligatorios** para cada operación asíncrona: carga (spinner/skeleton/disabled), éxito, error con mensaje legible.
+- **Race conditions controladas**: peticiones susceptibles de superponerse deben usar `AbortController` o `AbortSignal.timeout()`.
+
+## Web Storage
+
+- **`JSON.stringify`/`JSON.parse`** en toda escritura y lectura de Storage.
+- **Nunca guardar** en Storage: contraseñas, tokens JWT, datos sensibles de sesión.
+- `localStorage` para preferencias de interfaz persistentes; `sessionStorage` para estado temporal de la sesión.
+
+## Antipatrones con código de referencia
+
+```js
+// ❌ var
+var contador = 0;
+
+// ❌ innerHTML con datos del usuario — XSS
+lista.innerHTML = `<li>${inputUsuario}</li>`;
+
+// ❌ Mutación del original
+const ordenado = mazo.sort();           // muta mazo — usar [...mazo].sort()
+
+// ❌ Listeners en elementos dinámicos sin delegación
+cartas.forEach(c => c.addEventListener('click', handler));
+
+// ❌ Layout Thrashing
+items.forEach(item => contenedor.appendChild(crearEl(item)));
+
+// ❌ fetch sin response.ok
+const data = await (await fetch('/api')).json();  // parsea un 404 sin error
+
+// ❌ fetch sin try/catch
+const data = await fetch('/api').then(r => r.json());
+
+// ❌ Storage sin serialización
+localStorage.setItem('estado', objeto);    // guarda "[object Object]"
+
+// ❌ Lógica de dominio en archivo de UI
+// ui/tablero.js
+export function renderizar(tablero) {
+  const puntaje = tablero.reduce(...);    // ← esto va en logic/, no en ui/
+}
+```
+
+```html
+<!-- ❌ Div-itis -->
+<div class="header">
+  <div class="nav"><div class="link">Home</div></div>
+</div>
+
+<!-- ❌ Input sin label -->
+<input type="text" placeholder="Nombre" />
+
+<!-- ❌ Imagen sin alt -->
+<img src="carta.png" />
+```
+
+```css
+/* ❌ CSS custom para lo que Tailwind ya resuelve */
+.btn {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+}
+/* usar: class="px-4 py-2 rounded-lg" */
+```
